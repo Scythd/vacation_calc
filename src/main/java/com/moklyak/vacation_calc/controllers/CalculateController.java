@@ -70,7 +70,7 @@ public class CalculateController {
                         vacDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
                         return  holDay != vacDay &&
                                 holMon != vacMon ||
-                                vacDayOfWeek != Calendar.SATURDAY ||
+                                vacDayOfWeek != Calendar.SATURDAY &&
                                 vacDayOfWeek != Calendar.SUNDAY;
                     })).count();
             return Math.round(avgMonthSalary / AVG_DAY_IN_MONTH_COUNT * actualCount);
