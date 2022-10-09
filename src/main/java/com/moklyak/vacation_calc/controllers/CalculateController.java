@@ -1,35 +1,27 @@
 package com.moklyak.vacation_calc.controllers;
 
 
+import com.moklyak.vacation_calc.exceptions.ValidationException;
+import com.moklyak.vacation_calc.services.CalculateService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
 import java.util.Set;
 
 @RestController
 @RequestMapping("/calculate")
 public class CalculateController {
-    private final static DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
-    private final List<Date> holidays;
-    private final Calendar calendar = Calendar.getInstance();
+
+    private final CalculateService calculateService;
 
     @Autowired
-    public CalculateController(@Qualifier("holidays") List<Date> holidays) {
-        this.holidays = holidays;
+    public CalculateController(CalculateService calculateService) {
+        this.calculateService = calculateService;
     }
-
-    private static final double AVG_DAY_IN_MONTH_COUNT = 29.3;
 
     /**
      * Returns the vacation payment for specified average month salary and count of vacations days or
@@ -45,35 +37,13 @@ public class CalculateController {
      */
     @GetMapping()
     Object calculate(@RequestParam int avgMonthSalary,
-                     @RequestParam int vacDaysCount,
-                     @Nullable @RequestParam Set<String> vacDays) {
-        if (vacDays == null) {
-            return Math.round(avgMonthSalary / AVG_DAY_IN_MONTH_COUNT * vacDaysCount);
-        } else {
-            long actualCount = vacDays.stream()
-                    .map(source -> {
-                                try {
-                                    return dateFormat.parse(source);
-                                } catch (ParseException ex) {
-                                    throw new RuntimeException(ex);
-                                }
-                            }
-                    )
-                    .filter(x -> holidays.stream().noneMatch(y -> {
-                        int holDay, holMon, vacDay, vacMon, vacDayOfWeek;
-                        calendar.setTime(y);
-                        holDay = calendar.get(Calendar.MONTH);
-                        holMon = calendar.get(Calendar.DAY_OF_MONTH);
-                        calendar.setTime(x);
-                        vacDay = calendar.get(Calendar.MONTH);
-                        vacMon = calendar.get(Calendar.DAY_OF_MONTH);
-                        vacDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
-                        return  holDay != vacDay &&
-                                holMon != vacMon ||
-                                vacDayOfWeek != Calendar.SATURDAY &&
-                                vacDayOfWeek != Calendar.SUNDAY;
-                    })).count();
-            return Math.round(avgMonthSalary / AVG_DAY_IN_MONTH_COUNT * actualCount);
+                   @RequestParam int vacDaysCount,
+                   @Nullable @RequestParam Set<String> vacDays) {
+        try {
+            calculateService.validate(avgMonthSalary, vacDaysCount, vacDays);
+            return calculateService.calculate(avgMonthSalary, vacDaysCount, vacDays);
+        } catch (ValidationException ex){
+            return ex;
         }
     }
 }
